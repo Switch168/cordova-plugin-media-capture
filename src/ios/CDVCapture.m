@@ -515,10 +515,25 @@
         // mediaType was image
         result = [self processImage:image type:cameraPicker.mimeType forCallbackId:callbackId];
     } else if ([mediaType isEqualToString:(NSString*)kUTTypeMovie]) {
-        // process video
+        // process video and convert to mp4
         NSString* moviePath = [(NSURL *)[info objectForKey:UIImagePickerControllerMediaURL] path];
         if (moviePath) {
-            result = [self processVideo:moviePath forCallbackId:callbackId];
+            // result = [self processVideo:moviePath forCallbackId:callbackId];
+            AVURLAsset *avAsset = [AVURLAsset URLAssetWithURL:[NSURL fileURLWithPath:moviePath] options:nil];
+            AVAssetExportSession *exportSession = [[AVAssetExportSession alloc] initWithAsset:avAsset presetName:AVAssetExportPresetPassthrough];
+            NSString *mp4Path = [moviePath stringByReplacingOccurrencesOfString:@".MOV" withString:@".MP4"];
+            exportSession.outputURL = [NSURL fileURLWithPath:mp4Path];
+            exportSession.outputFileType = AVFileTypeMPEG4;
+            [exportSession exportAsynchronouslyWithCompletionHandler:^(void) {
+
+                // create MediaFile object
+                NSDictionary* fileDict = [self getMediaDictionaryFromPath:mp4Path ofType:nil];
+                NSArray* fileArray = [NSArray arrayWithObject:fileDict];
+                
+                [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:fileArray] callbackId:callbackId];
+                pickerController = nil;
+            }];
+            return;
         }
     }
     if (!result) {
